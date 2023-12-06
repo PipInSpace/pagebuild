@@ -6,6 +6,7 @@ fn main() {
     let paths = std::fs::read_dir(path.to_owned() + "\\text-src").expect("text-src should exist");
     let template = std::fs::read_to_string(path.to_owned() + "/text-src/template.html")
         .expect("template.html should exist");
+    let components = std::fs::read_to_string(path.to_owned() + "/text-src/components.html").ok();
 
     let mut count = 0;
     // Iterate over markdown files
@@ -36,7 +37,7 @@ fn main() {
                     println!("Markdown: \n{}", file_content);
                 }
 
-                let md_html = md_to_html(file_content);
+                let md_html = md_to_html(file_content, &components);
                 if verbose {
                     println!("Generated HTML: \n{}", md_html);
                 }
@@ -67,7 +68,7 @@ enum HtmlSection {
     None,
 }
 
-fn md_to_html(content: String) -> String {
+fn md_to_html(content: String, components: &Option<String>) -> String {
     let mut html = String::new();
     let mut old_section = HtmlSection::None;
     //let mut is_paragraph = false;
@@ -75,11 +76,19 @@ fn md_to_html(content: String) -> String {
     //let mut is_quote = false;
     let mut ind = 1;
 
+    // Convert lines
     for line in content.lines() {
+        if line.contains("{{component: ") {
+            let component = populate_component(line, components);
+            html = html + &component + "\n";
+            continue;
+        }
+
         // Add links to line
         let line = &md_links(line);
         let mut new_section = HtmlSection::None;
 
+        // Get current section
         if line.contains("# ") && line.chars().next() == Some('#')  {
             // Heading1
             new_section = HtmlSection::Heading1;
@@ -248,4 +257,31 @@ fn md_img(line: &str) -> (String, String) {
     let name = vec_line[0].replace("![", "");
     let dest = vec_line[1].split(")").next().expect("should have a destination").to_string();
     (name, dest)
+}
+
+fn populate_component(line: &str, components: &Option<String>) -> String {
+    let new = line.replace("{{component:", "");
+    let comp_name = new.split("}}").next().expect("component should not be empty").replace(" ", "");
+
+    match components {
+        Some(components) => {
+            let component_first = components.split_once(&comp_name);
+
+            match component_first {
+                Some((_, component)) => {
+                    component.split("</end>").nth(0).expect("component should exist").to_string()
+                }
+                None => {
+                    println!("Warning! Component {} is missing", comp_name);
+                    String::new()
+                }
+            }
+        },
+        None => {
+            println!("Warning! Components are missing");
+            String::new()
+        }
+    }
+
+    
 }
