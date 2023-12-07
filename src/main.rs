@@ -10,9 +10,22 @@ fn main() {
 
     // Open Files
     println!("🟢 Building {}...", path);
-    let paths = std::fs::read_dir(path.to_owned() + "\\text-src").expect("text-src should exist");
-    let template = std::fs::read_to_string(path.to_owned() + "/text-src/template.html")
-        .expect("template.html should exist");
+    let paths = std::fs::read_dir(path.to_owned() + "\\text-src");
+    let paths = match paths {
+        Ok(paths) => paths,
+        Err(_) => {
+            println!("🔴 WARNING! ./{} does not exist. Aborting.", path);
+            std::process::exit(0);
+        }
+    };
+
+    let template = match std::fs::read_to_string(path.to_owned() + "/text-src/template.html") {
+        Ok(string) => string,
+        Err(_) => {
+            println!("🔴 WARNING! HTML template at ./{}/text-src/template.html does not exist. Aborting.", path);
+            std::process::exit(0);
+        }
+    };
     let components_string =
         std::fs::read_to_string(path.to_owned() + "/text-src/components.html").ok();
 
@@ -54,7 +67,7 @@ fn main() {
                     println!("🟠 Markdown: \n{}", file_content);
                 }
 
-                let content_populated = populate_components(file_content, &components);
+                let content_populated = populate_components(file_content, &components, verbose);
 
                 let parse = pulldown_cmark::Parser::new(&content_populated);
                 let parse = parse.map(|event| match event {
@@ -117,11 +130,14 @@ fn parse_components(component_string: String, component_map: &mut HashMap<String
     }
 }
 
-fn populate_components(content: String, components: &HashMap<String, String>) -> String {
+fn populate_components(content: String, components: &HashMap<String, String>, verbose: bool) -> String {
     let mut new_content = String::new();
 
     for line in content.lines() {
         if line.contains("{{component:") {
+            if verbose {
+                println!("🟠 Populating component(s): {}", line);
+            }
             new_content = new_content + &comp_line(line, components, 0) + "\n"
         } else {
             new_content = new_content + line + "\n";
