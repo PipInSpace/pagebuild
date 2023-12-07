@@ -9,7 +9,7 @@ fn main() {
     let path = &args[1];
 
     // Open Files
-    println!("Building {}...", path);
+    println!("🟢 Building {}...", path);
     let paths = std::fs::read_dir(path.to_owned() + "\\text-src").expect("text-src should exist");
     let template = std::fs::read_to_string(path.to_owned() + "/text-src/template.html")
         .expect("template.html should exist");
@@ -21,10 +21,11 @@ fn main() {
     if let Some(component_string) = components_string {
         parse_components(component_string, &mut components);
     } else {
-        println!("WARNING! components.html is missing")
+        println!("🔴 WARNING! components.html is missing.")
     }
 
     let mut count = 0;
+    let mut file_names: Vec<String> = vec![];
     // Iterate over markdown files
     for md_path in paths.filter(|x| {
         x.as_ref()
@@ -50,7 +51,7 @@ fn main() {
                 let file_content =
                     std::fs::read_to_string(md_path.path()).expect("file should exist");
                 if verbose {
-                    println!("Markdown: \n{}", file_content);
+                    println!("🟠 Markdown: \n{}", file_content);
                 }
 
                 let content_populated = populate_components(file_content, &components);
@@ -65,7 +66,7 @@ fn main() {
                 pulldown_cmark::html::push_html(&mut md_html, parse);
                 //let md_html = md_to_html(file_content, &components);
                 if verbose {
-                    println!("Generated HTML: \n{}", md_html);
+                    println!("🟠 Generated HTML: \n{}", md_html);
                 }
 
                 // Set title
@@ -76,13 +77,17 @@ fn main() {
                 // Write to disk. File names are lowercase and replace spaces with '-'
                 std::fs::write(path.to_string() + "\\" + &name_hum.replace(" ", "-").to_lowercase() + ".html", html_file)
                     .expect("should be able to write to file");
+                file_names.push(name_hum.replace(" ", "-").to_lowercase());
                 count += 1;
             }
             Err(_) => {}
         }
     }
 
-    println!("Complete! Build {} file(s)", count);
+    println!("🟢 Complete! Build {} file(s)", count);
+    for name in file_names {
+        println!("    - {}.html", name)
+    }
 }
 
 fn parse_components(component_string: String, component_map: &mut HashMap<String, String>) {
@@ -130,7 +135,7 @@ fn populate_components(content: String, components: &HashMap<String, String>) ->
 fn comp_line(line: &str, components: &HashMap<String, String>, depth: u32) -> String {
     let depth = depth + 1;
     if depth > MAX_COMPONENT_DEPTH {
-        println!("WARNING! Maximum component depth reached! Is a component recursive?");
+        println!("🔴 WARNING! Maximum component depth reached. Is a component recursive?");
         return line.to_string();
     }
     if line.contains("{{component:") {
@@ -156,7 +161,7 @@ fn comp_line(line: &str, components: &HashMap<String, String>, depth: u32) -> St
                     return new_line;
             }
             None => {
-                println!("WARNING! Component {} missing", name);
+                println!("🔴 WARNING! Component {} missing.", name);
                 // Clear component
                 new_line = new_line
                     + &line.replace(

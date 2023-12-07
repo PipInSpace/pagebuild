@@ -21,4 +21,5 @@ After text
 > \- By me
 
 Recursion!
+{{component: recusrse}}
 {{component: recurse}}
