@@ -17,4 +17,4 @@ This system even supports images:
 
 After text
 > This is quote
-> - By me
+> \- By me

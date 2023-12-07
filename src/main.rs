@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let verbose = args.contains(&"--verbose".to_string());
@@ -6,7 +8,13 @@ fn main() {
     let paths = std::fs::read_dir(path.to_owned() + "\\text-src").expect("text-src should exist");
     let template = std::fs::read_to_string(path.to_owned() + "/text-src/template.html")
         .expect("template.html should exist");
-    let components = std::fs::read_to_string(path.to_owned() + "/text-src/components.html").ok();
+    let components_string =
+        std::fs::read_to_string(path.to_owned() + "/text-src/components.html").ok();
+
+    let mut components: HashMap<String, String> = HashMap::new();
+    if let Some(component_string) = components_string {
+        parse_components(component_string, &mut components);
+    }
 
     let mut count = 0;
     // Iterate over markdown files
@@ -37,7 +45,17 @@ fn main() {
                     println!("Markdown: \n{}", file_content);
                 }
 
-                let md_html = md_to_html(file_content, &components);
+                let content_populated = populate_components(file_content, &components);
+
+                let parse = pulldown_cmark::Parser::new(&content_populated);
+                let parse = parse.map(|event| match event {
+                    pulldown_cmark::Event::SoftBreak => pulldown_cmark::Event::HardBreak,
+                    _ => event,
+                });
+
+                let mut md_html = String::new();
+                pulldown_cmark::html::push_html(&mut md_html, parse);
+                //let md_html = md_to_html(file_content, &components);
                 if verbose {
                     println!("Generated HTML: \n{}", md_html);
                 }
@@ -68,6 +86,7 @@ enum HtmlSection {
     None,
 }
 
+#[allow(unused)]
 fn md_to_html(content: String, components: &Option<String>) -> String {
     let mut html = String::new();
     let mut old_section = HtmlSection::None;
@@ -89,19 +108,19 @@ fn md_to_html(content: String, components: &Option<String>) -> String {
         let mut new_section = HtmlSection::None;
 
         // Get current section
-        if line.contains("# ") && line.chars().next() == Some('#')  {
+        if line.contains("# ") && line.chars().next() == Some('#') {
             // Heading1
             new_section = HtmlSection::Heading1;
-        } else if line.contains("## ") && line.chars().next() == Some('#')  {
+        } else if line.contains("## ") && line.chars().next() == Some('#') {
             // Heading2
             new_section = HtmlSection::Heading2;
-        } else if line.contains("- ") && line.chars().next() == Some('-')  {
+        } else if line.contains("- ") && line.chars().next() == Some('-') {
             // List
             new_section = HtmlSection::UnorderedList;
-        } else if line.contains("> ") && line.chars().next() == Some('>')  {
+        } else if line.contains("> ") && line.chars().next() == Some('>') {
             // Quote
             new_section = HtmlSection::Quote;
-        } else if line.contains("![") && line.chars().next() == Some('!')  {
+        } else if line.contains("![") && line.chars().next() == Some('!') {
             // Image
             new_section = HtmlSection::Image;
         } else {
@@ -117,35 +136,35 @@ fn md_to_html(content: String, components: &Option<String>) -> String {
                 HtmlSection::Paragraph => {
                     ind -= 1;
                     html = html + &indent(ind) + "</p>\n";
-                },
+                }
                 HtmlSection::UnorderedList => {
                     ind -= 1;
                     html = html + &indent(ind) + "</ul>\n";
-                },
+                }
                 HtmlSection::Quote => {
                     ind -= 1;
                     html = html + &indent(ind) + "</p>\n";
-                },
+                }
                 _ => {}
             }
         }
 
-        // Add content: 
+        // Add content:
         // Open new section if necessary
         if old_section != new_section {
             match new_section {
                 HtmlSection::Paragraph => {
                     html = html + &indent(ind) + "<p>\n";
                     ind += 1;
-                },
+                }
                 HtmlSection::UnorderedList => {
                     html = html + &indent(ind) + "<ul>\n";
                     ind += 1;
-                },
+                }
                 HtmlSection::Quote => {
                     html = html + &indent(ind) + "<p class=\"quote\">\n";
                     ind += 1;
-                },
+                }
                 _ => {}
             }
         }
@@ -155,19 +174,19 @@ fn md_to_html(content: String, components: &Option<String>) -> String {
                 if line != "" {
                     html = html + &indent(ind) + line + "<br>\n"
                 }
-            },
+            }
             HtmlSection::Heading1 => {
                 html = html + &indent(ind) + "<h1>" + &line.replace("# ", "") + "</h1>\n";
-            },
+            }
             HtmlSection::Heading2 => {
                 html = html + &indent(ind) + "<h2>" + &line.replace("## ", "") + "</h2>\n";
-            },
+            }
             HtmlSection::UnorderedList => {
                 html = html + &indent(ind) + "<li>" + &line.replace("- ", "") + "</li>\n";
-            },
+            }
             HtmlSection::Quote => {
                 html = html + &indent(ind) + &line.replace("> ", "") + "<br>\n";
-            },
+            }
             HtmlSection::Image => {
                 let (name, dest) = md_img(line);
                 html = html + &indent(ind) + "<img src=\"" + &dest + "\" alt=\"" + &name + "\">\n"
@@ -183,15 +202,15 @@ fn md_to_html(content: String, components: &Option<String>) -> String {
         HtmlSection::Paragraph => {
             ind -= 1;
             html = html + &indent(ind) + "</p>\n";
-        },
+        }
         HtmlSection::UnorderedList => {
             ind -= 1;
             html = html + &indent(ind) + "</ul>\n";
-        },
+        }
         HtmlSection::Quote => {
             ind -= 1;
             html = html + &indent(ind) + "</p>\n";
-        },
+        }
         _ => {}
     }
 
@@ -255,33 +274,155 @@ fn md_links(line: &str) -> String {
 fn md_img(line: &str) -> (String, String) {
     let vec_line: Vec<&str> = line.split("](").collect();
     let name = vec_line[0].replace("![", "");
-    let dest = vec_line[1].split(")").next().expect("should have a destination").to_string();
+    let dest = vec_line[1]
+        .split(")")
+        .next()
+        .expect("should have a destination")
+        .to_string();
     (name, dest)
+}
+
+fn parse_components(component_string: String, component_map: &mut HashMap<String, String>) {
+    let mut comp_name = String::new();
+    let mut comp = String::new();
+    let mut is_comp = false;
+
+    for line in component_string.lines() {
+        if line.starts_with("{{") && line.chars().nth(2).expect("should be char") != '/' {
+            is_comp = true;
+        } else if line.starts_with("{{/") {
+            is_comp = false;
+        }
+
+        if line.starts_with("{{") && is_comp {
+            // Start of component
+            comp_name = line.replace(['{', '}'], "");
+        } else if line.starts_with("{{/") && !is_comp {
+            // End of component, insert into map
+            component_map.insert(comp_name.clone(), comp.clone());
+            comp_name = String::new();
+            comp = String::new();
+        } else if is_comp {
+            // Part of component
+            comp = comp + line + "\n";
+        }
+    }
+}
+
+fn populate_components(content: String, components: &HashMap<String, String>) -> String {
+    let mut new_content = String::new();
+
+    for line in content.lines() {
+        if line.contains("{{component:") {
+            let split = line.split("{{component:").nth(1).expect("should be string");
+            let name = split
+                .split("}}")
+                .nth(0)
+                .expect("should be string")
+                .replace(" ", "");
+
+            let comp = components.get(&name);
+            match comp {
+                Some(comp) => {
+                    new_content = new_content
+                        + &line.replace(
+                            &("{{component:".to_string()
+                                + split.split("}}").nth(0).expect("should be string")
+                                + "}}"),
+                            &comp,
+                        );
+                }
+                None => {
+                    println!("WARNING! Component {} missing", name);
+                    // Clear component
+                    new_content = new_content
+                        + &line.replace(
+                            &("{{component:".to_string()
+                                + split.split("}}").nth(0).expect("should be string")
+                                + "}}"),
+                            "",
+                        )
+                        + "\n";
+                }
+            }
+        } else {
+            new_content = new_content + line + "\n";
+        }
+    }
+
+    new_content
+}
+
+fn comp_line(line: &str, components: &HashMap<String, String>) -> String {
+    if line.contains("{{component:") {
+        let mut new_line = String::new();
+        let split = line.split("{{component:").nth(1).expect("should be string");
+        let name = split
+            .split("}}")
+            .nth(0)
+            .expect("should be string")
+            .replace(" ", "");
+
+        let comp = components.get(&name);
+        match comp {
+            Some(comp) => {
+                new_line = new_line
+                    + &line.replace(
+                        &("{{component:".to_string()
+                            + split.split("}}").nth(0).expect("should be string")
+                            + "}}"),
+                        &comp,
+                    );
+                    new_line = comp_line(&new_line, components);
+                    return new_line;
+            }
+            None => {
+                println!("WARNING! Component {} missing", name);
+                // Clear component
+                new_line = new_line
+                    + &line.replace(
+                        &("{{component:".to_string()
+                            + split.split("}}").nth(0).expect("should be string")
+                            + "}}"),
+                        "",
+                    )
+                    + "\n";
+                new_line = comp_line(&new_line, components);
+                return new_line;
+            }
+        }
+    } else {
+        return line.to_string();
+    }
 }
 
 fn populate_component(line: &str, components: &Option<String>) -> String {
     let new = line.replace("{{component:", "");
-    let comp_name = new.split("}}").next().expect("component should not be empty").replace(" ", "");
+    let comp_name = new
+        .split("}}")
+        .next()
+        .expect("component should not be empty")
+        .replace(" ", "");
 
     match components {
         Some(components) => {
             let component_first = components.split_once(&comp_name);
 
             match component_first {
-                Some((_, component)) => {
-                    component.split("</end>").nth(0).expect("component should exist").to_string()
-                }
+                Some((_, component)) => component
+                    .split("</end>")
+                    .nth(0)
+                    .expect("component should exist")
+                    .to_string(),
                 None => {
                     println!("Warning! Component {} is missing", comp_name);
                     String::new()
                 }
             }
-        },
+        }
         None => {
             println!("Warning! Components are missing");
             String::new()
         }
     }
-
-    
 }
