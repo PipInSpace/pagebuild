@@ -1,5 +1,6 @@
 {{component: link-banner}}
 {{component: main-body-start}}
+
 # An amazing start
 
 This is the first text 

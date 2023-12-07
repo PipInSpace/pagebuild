@@ -314,37 +314,7 @@ fn populate_components(content: String, components: &HashMap<String, String>) ->
 
     for line in content.lines() {
         if line.contains("{{component:") {
-            let split = line.split("{{component:").nth(1).expect("should be string");
-            let name = split
-                .split("}}")
-                .nth(0)
-                .expect("should be string")
-                .replace(" ", "");
-
-            let comp = components.get(&name);
-            match comp {
-                Some(comp) => {
-                    new_content = new_content
-                        + &line.replace(
-                            &("{{component:".to_string()
-                                + split.split("}}").nth(0).expect("should be string")
-                                + "}}"),
-                            &comp,
-                        );
-                }
-                None => {
-                    println!("WARNING! Component {} missing", name);
-                    // Clear component
-                    new_content = new_content
-                        + &line.replace(
-                            &("{{component:".to_string()
-                                + split.split("}}").nth(0).expect("should be string")
-                                + "}}"),
-                            "",
-                        )
-                        + "\n";
-                }
-            }
+            new_content = new_content + &comp_line(line, components) + "\n"
         } else {
             new_content = new_content + line + "\n";
         }
@@ -353,6 +323,7 @@ fn populate_components(content: String, components: &HashMap<String, String>) ->
     new_content
 }
 
+// Recursively generate components
 fn comp_line(line: &str, components: &HashMap<String, String>) -> String {
     if line.contains("{{component:") {
         let mut new_line = String::new();
