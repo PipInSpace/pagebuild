@@ -1,16 +1,17 @@
-This is a component file. Components are introduced with {{name}} and end with {{/name}}, each on a new line.
-Between these tags, any markdown and html content can be inserted, which will be processed like usual.
-All other file content is treated as a comment.
-Components can work recursively with the {{component: other-name}} tag. Inserting a component within itself is a bad idea...
+{{component: main-body-start}}
 
-{{link-banner}}
-<div class="link-banner">
-    <div class="title-links">
-        <a href="index.html">Home</a>
-        <a href="blog.html">Blog</a>
-        <a href="rss.xml">RSS</a>
-    </div>
-    <div class="social_icons">
+<div class="title-image">
+  <img src="img/TitleBackground.png" class="no-select">
+  <h1>Hi, I'm PipInSpace!</h1>
+  <p>I do rust programming, computational fluid dynamics and a bit of game developement! Currently working on
+    IonSolver, a
+    magnetohydrodynamic simulation software.</p>
+  <div class="title-links">
+    <a href="index.html">Home</a>
+    <a href="blog.html">Blog</a>
+    <a href="rss.xml">RSS</a>
+  </div>
+  <div class="social_icons">
         <a href="https://github.com/PipInSpace"><svg viewBox="0 0 496 512">
                 <path
                     d="M165.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6zm-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3zm44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9zM244.8 8C106.1 8 0 113.3 0 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C428.2 457.8 496 362.9 496 252 496 113.3 383.5 8 244.8 8zM97.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1zm-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7zm32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1zm-11.4-14.7c-1.6 1-1.6 3.6 0 5.9 1.6 2.3 4.3 3.3 5.6 2.3 1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2z" />
@@ -36,13 +37,35 @@ Components can work recursively with the {{component: other-name}} tag. Insertin
         </a>
     </div>
 </div>
-{{/link-banner}}
 
-{{main-body-start}}
-<div class="main_body">
-{{/main-body-start}}
+# About Me
 
-{{recurse}}
-This is a recursive text!
- {{component: recurse}}
-{{/recurse}}
+Hello, I'm PipInSpace! This is my website where I showcase some of my projects and write about things on my [Blog](./blog.html) (at least that's planned). I am currently working on my main project [IonSolver](https://github.com/PipInSpace/IonSolver), a magnetohydrodynamic physics simulation (Primarily for a student competition). I have some side projects, like my [reminder software](https://github.com/PipInSpace/reminder), a [fancy sci-fi ui](https://github.com/PipInSpace/rdex-ui) and this website. You can find them in the projects section. 
+
+# My Projects
+
+Here is a quick list.
+<div class="quote text-padding" style="font-family: 'Moderat Medium', sans-serif;">
+    <a href="https://github.com/PipInSpace/IonSolver">IonSolver</a> - a simulation software<br>
+    <a href="https://github.com/PipInSpace/reminder">reminder</a> - it reminds you to do stuff<br>
+    <a href="https://github.com/PipInSpace/rdex-ui">rdex-ui</a> - a fancy sci-fi terminal emulator<br>
+    <a href="https://github.com/FN-2189/SCS">SCS</a> - a space game by me and a friend<br>
+</div>
+
+## IonSolver
+
+This software will attempt to model magnetohydrodynamic processes with magnetic field-ionized gas interactions. It uses a lattice-boltzman-model for the fluid, initial kernel functions for the LBM where taken with permission from the software [FluidX3D](https://github.com/ProjectPhysX/FluidX3D) by Dr. Moritz Lehmann. More on the [GitHub](https://github.com/PipInSpace/IonSolver). 
+
+<div style="display: none;"><!--Mastodon Verification-->
+    <a rel="me" href="https://mastodon.social/@pipinspace">Mastodon</a>
+</div>
+
+## webring
+
+<div class="webring">
+    <a href="">&lt <img src=""></a>
+    <a href=""><img src="webring/logo.png"></a>
+    <a href="https://tudbut.de"><img src="http://tudbut.de:81/webring/logo.png"> &gt</a>
+</div>
+
+*feel the 2000's* 😎
