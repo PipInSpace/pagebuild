@@ -1,7 +1,16 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
+use chrono::prelude::*;
 
 // How many components can be in a line. Needed in case of recursively defined components
 const MAX_COMPONENT_DEPTH: u32 = 10;
+
+#[derive(Clone)]
+struct Post {
+    name: String,
+    file_name: String,
+    content: String,
+    date: Duration,
+}
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
@@ -19,10 +28,19 @@ fn main() {
         }
     };
 
-    let template = match std::fs::read_to_string(path.to_owned() + "/text-src/template.html") {
+    // Blog template
+    let post_template = match std::fs::read_to_string(path.to_owned() + "/text-src/blog_post.html") {
         Ok(string) => string,
         Err(_) => {
-            println!("🔴 WARNING! HTML template at ./{}/text-src/template.html does not exist. Aborting.", path);
+            println!("🔴 WARNING! Blog post template at ./{}/text-src/template.html does not exist. Aborting.", path);
+            std::process::exit(0);
+        }
+    };
+    // Blog main page
+    let index_template = match std::fs::read_to_string(path.to_owned() + "/text-src/blog_index.html") {
+        Ok(string) => string,
+        Err(_) => {
+            println!("🔴 WARNING! Blog index template at ./{}/text-src/blog_index.html does not exist. Aborting.", path);
             std::process::exit(0);
         }
     };
@@ -38,7 +56,7 @@ fn main() {
     }
 
     let mut count = 0;
-    let mut file_names: Vec<String> = vec![];
+    let mut posts: Vec<Post> = vec![];
     // Iterate over markdown files
     for md_path in paths.filter(|x| {
         x.as_ref()
@@ -50,6 +68,8 @@ fn main() {
     }) {
         match md_path {
             Ok(md_path) => {
+
+                // Get post name
                 let name = md_path.file_name();
                 let name_hum = name
                     .to_str()
@@ -61,14 +81,19 @@ fn main() {
                     println!("Markdown file: {}", name_hum);
                 }
 
+                // Read markdown
                 let file_content =
                     std::fs::read_to_string(md_path.path()).expect("file should exist");
                 if verbose {
                     println!("🟠 Markdown: \n{}", file_content);
                 }
 
+                
+
+                // Populate components
                 let content_populated = populate_components(file_content, &components, verbose);
 
+                // Parse markdown with pulldown_cmark
                 let parse = pulldown_cmark::Parser::new(&content_populated);
                 let parse = parse.map(|event| match event {
                     pulldown_cmark::Event::SoftBreak => pulldown_cmark::Event::HardBreak,
@@ -77,30 +102,120 @@ fn main() {
 
                 let mut md_html = String::new();
                 pulldown_cmark::html::push_html(&mut md_html, parse);
-                //let md_html = md_to_html(file_content, &components);
                 if verbose {
                     println!("🟠 Generated HTML: \n{}", md_html);
                 }
 
+                // Save Post creation date
+                let metadata = std::fs::metadata(md_path.path()).unwrap();
+                let mut date = String::new();
+
+                if let Ok(time) = metadata.modified() {
+                    posts.push(Post {
+                        name: name_hum.to_string(),
+                        file_name: name_hum.replace(" ", "-").to_lowercase() + ".html",
+                        content: md_html.clone(),
+                        date: time.duration_since(std::time::UNIX_EPOCH).unwrap()
+                    });
+                    date = Local.timestamp_opt(time.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string();
+                } else {
+                    println!("Not supported on this platform");
+                }
+
                 // Set title
-                let mut html_file = template.replace("{{title}}", name_hum);
+                let mut html_file = post_template.replace("{{title}}", name_hum);
                 // Insert formatted content
                 html_file = html_file.replace("{{content}}", &md_html);
+                // Insert date
+                html_file = html_file.replace("{{date}}", &date);
                 
                 // Write to disk. File names are lowercase and replace spaces with '-'
                 std::fs::write(path.to_string() + "\\" + &name_hum.replace(" ", "-").to_lowercase() + ".html", html_file)
                     .expect("should be able to write to file");
-                file_names.push(name_hum.replace(" ", "-").to_lowercase());
+
+                
+
                 count += 1;
             }
             Err(_) => {}
         }
     }
 
-    println!("🟢 Complete! Build {} file(s)", count);
-    for name in file_names {
-        println!("    - {}.html", name)
+    println!("🟢 Build {} post(s)", count);
+    for post in &posts {
+        println!("    - {}: {}", post.name, post.file_name)
     }
+
+    // Generate blog index
+    println!("🟢 Building index page...");
+    posts.sort_by(|a, b| b.date.cmp(&a.date));
+
+    // Generate Blog Index
+    // Insert current post
+    let mut html_file = index_template.replace("{{current_post}}", &current_post_fmt(posts[0].clone()));
+    // Insert all posts
+    html_file = html_file.replace("{{all_posts}}", &all_posts_table(&posts));
+
+    // Write to file
+    std::fs::write(path.to_string() + "\\blog.html", html_file)
+        .expect("should be able to write to file");
+
+    println!("🟢 Build index page! Done.");
+}
+
+fn current_post_fmt(post: Post) -> String {
+    let dt = Local.timestamp_opt(post.date.as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string();
+    println!("🟢 Current Post: {} - {}", post.name, dt);
+
+    let mut content = String::new();
+    content += "<h1>Current: <a href=\"";
+    content += &post.file_name;
+    content += "\">";
+    content += &post.name;
+    content += "</a></h1>\n";
+    content += &post.content;
+    content += "\n<div class=\"blog_footer\">";
+    content += &dt;
+    content += "</div>";
+
+    content
+}
+
+#[allow(unused)]
+fn all_posts_list(posts: &Vec<Post>) -> String {
+    let mut content = String::new();
+    content += "<ul class=\"blog_post_list\">\n";
+
+    for post in posts {
+        content += "<li><a href=\"";
+        content += &post.file_name;
+        content += "\">";
+        content += &post.name;
+        content += "</a> - ";
+        content += &Local.timestamp_opt(post.date.as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string();
+        content += "</li>\n";
+    }
+    content += "</ul>\n";
+
+    content
+}
+
+fn all_posts_table(posts: &Vec<Post>) -> String {
+    let mut content = String::new();
+    content += "<table class=\"blog_post_list\">\n";
+
+    for post in posts {
+        content += "<tr><td><a href=\"";
+        content += &post.file_name;
+        content += "\">";
+        content += &post.name;
+        content += "</a></td><td> ";
+        content += &Local.timestamp_opt(post.date.as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string();
+        content += "</td></tr>\n";
+    }
+    content += "</table>\n";
+
+    content
 }
 
 fn parse_components(component_string: String, component_map: &mut HashMap<String, String>) {
