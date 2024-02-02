@@ -95,10 +95,10 @@ fn main() {
 
                 // Parse markdown with pulldown_cmark
                 let parse = pulldown_cmark::Parser::new(&content_populated);
-                let parse = parse.map(|event| match event {
-                    pulldown_cmark::Event::SoftBreak => pulldown_cmark::Event::HardBreak,
-                    _ => event,
-                });
+                //let parse = parse.map(|event| match event {
+                //    pulldown_cmark::Event::SoftBreak => pulldown_cmark::Event::HardBreak,
+                //    _ => event,
+                //});
 
                 let mut md_html = String::new();
                 pulldown_cmark::html::push_html(&mut md_html, parse);
@@ -110,7 +110,7 @@ fn main() {
                 let metadata = std::fs::metadata(md_path.path()).unwrap();
                 let mut date = String::new();
 
-                if let Ok(time) = metadata.modified() {
+                if let Ok(time) = metadata.created() {
                     posts.push(Post {
                         name: name_hum.to_string(),
                         file_name: name_hum.replace(" ", "-").to_lowercase() + ".html",
