@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{title}}</title>
+    <!--Embed meta data-->
+    <meta content="I'm PipInSpace 👋" property="og:title" />
+    <meta content="This is the personal homepage of PipInSpace" property="og:description" />
+    <meta content="https://pipinspace.github.io/index.html" property="og:url" />
+    <meta content="https://pipinspace.github.io/img/BackgroundEmbed.jpg" property="og:image" />
+    <meta content="#aa50e1" data-react-helmet="true" name="theme-color" />
+    <meta name="twitter:image" content="https://pipinspace.github.io/img/BackgroundEmbed.jpg">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" type="text/css" href="../styles/styles.css">
+    <link rel="stylesheet" type="text/css" href="../styles/article_cards.css">
+    <link rel="stylesheet" type="text/css" href="../styles/link_banner.css">
+    <link rel="icon" type="image/x-icon" href="../img/PixelArtPipTransparent.png">
+</head>
+
+<body>
+    {{component: link-banner-blog}}
+    <div class="main_body">
+
+
+        <!--Main Body-->
+        <h1>{{title}}</h1>
+        {{content}}
+
+        <div class="blog_footer">
+            {{date}} <a href="blog.html" style="float: right;">Back to the Blog</a>
+        </div>
+        
+
+        <div class="impressum">
+            <div class="impressum_column impressum_left">
+                <span>Navigation</span><br>
+                <a class="a_impressum" href="../index.html">Home</a><br>
+                <a class="a_impressum" href="../privacy.html">Privacy Notice</a><br>
+                <a class="a_impressum" href="https://pipinspace.github.io">Home again</a><br>
+            </div>
+            <div class="impressum_column impressum_center">
+                <span>Copyright © 2022-2023</span><br>
+                by PipInSpace.<br> All Rights Reserved.<br>
+                <a href="https://pipinspace.github.io"><img class="clickableImg" src="img/PixelArtPipTransparent.png"
+                        alt="profile pic" style="border-radius: 400px;">
+                </a><br>
+            </div>
+            <div class="impressum_column impressum_right">
+                <span>Impressum</span><br>
+                Address
+            </div>
+        </div>
+
+    </div>
+
+</body>
+
+</html>

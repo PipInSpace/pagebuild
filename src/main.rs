@@ -10,12 +10,19 @@ struct Post {
     file_name: String,
     content: String,
     date: Duration,
+    date_hum: String,
 }
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
+    if args.len() < 2 {
+        println!("🔴 No arguments given. Please specify a path to the target directory. Aborting.");
+        std::process::exit(0);
+    }
     let verbose = args.contains(&"--verbose".to_string());
+    let blog = args.contains(&"--blog".to_string());
     let path = &args[1];
+    
 
     // Open Files
     println!("🟢 Building {}...", path);
@@ -28,22 +35,49 @@ fn main() {
         }
     };
 
-    // Blog template
-    let post_template = match std::fs::read_to_string(path.to_owned() + "/text-src/blog_post.html") {
+    // Page template
+    let template = match std::fs::read_to_string(path.to_owned() + "/text-src/template.html") {
         Ok(string) => string,
         Err(_) => {
-            println!("🔴 WARNING! Blog post template at ./{}/text-src/template.html does not exist. Aborting.", path);
+            println!("🔴 WARNING! Page template at ./{}/text-src/template.html does not exist. Aborting.", path);
             std::process::exit(0);
         }
+    };
+
+
+    // Only in --blog mode:
+    let blog_paths = std::fs::read_dir(path.to_owned() + "\\text-src\\blog");
+    let blog_paths = match blog_paths {
+        Ok(blog_paths) => blog_paths,
+        Err(_) => {
+            println!("🔴 WARNING! ./{}/blog does not exist. In blog mode, this is were your posts/templates need to be saved. Aborting.", path);
+            std::process::exit(0);
+        }
+    };
+
+    // Blog template
+    let post_template = if blog { match std::fs::read_to_string(path.to_owned() + "/text-src/blog/blog_post.html") {
+        Ok(string) => string,
+        Err(_) => {
+            println!("🔴 WARNING! Blog post template at ./{}/text-src/blog/blog_post.html does not exist. Aborting.", path);
+            std::process::exit(0);
+        }
+    }} else {
+        String::new()
     };
     // Blog main page
-    let index_template = match std::fs::read_to_string(path.to_owned() + "/text-src/blog_index.html") {
+    let index_template = if blog { match std::fs::read_to_string(path.to_owned() + "/text-src/blog/blog_index.html") {
         Ok(string) => string,
         Err(_) => {
-            println!("🔴 WARNING! Blog index template at ./{}/text-src/blog_index.html does not exist. Aborting.", path);
+            println!("🔴 WARNING! Blog index template at ./{}/text-src/blog/blog_index.html does not exist. Aborting.", path);
             std::process::exit(0);
         }
+    }} else {
+        String::new()
     };
+
+
+    // Build components
     let components_string =
         std::fs::read_to_string(path.to_owned() + "/text-src/components.html").ok();
 
@@ -55,112 +89,124 @@ fn main() {
         println!("🔴 WARNING! components.html is missing.")
     }
 
+    // Populate html template components
+    let template = populate_components(template, &components, verbose);
+    let post_template = populate_components(post_template, &components, verbose);
+    let index_template = populate_components(index_template, &components, verbose);
+
+    // Build posts
     let mut count = 0;
     let mut posts: Vec<Post> = vec![];
-    // Iterate over markdown files
-    for md_path in paths.filter(|x| {
-        x.as_ref()
-            .expect("path should exist")
-            .file_name()
-            .to_str()
-            .expect("string should exist")
-            .contains(".md")
-    }) {
-        match md_path {
-            Ok(md_path) => {
+    if blog {
+        // Iterate over markdown files
+        for md_path in blog_paths.filter(|x| {
+            x.as_ref()
+                .expect("path should exist")
+                .file_name()
+                .to_str()
+                .expect("string should exist")
+                .contains(".md")
+        }) {
+            match md_path {
+                Ok(md_path) => {
 
-                // Get post name
-                let name = md_path.file_name();
-                let name_hum = name
-                    .to_str()
-                    .expect("should be valid unicode")
-                    .split(".md")
-                    .next()
-                    .expect("should have .md");
-                if verbose {
-                    println!("Markdown file: {}", name_hum);
+                    // Get post name
+                    let name = md_path.file_name();
+                    let name_hum = name
+                        .to_str()
+                        .expect("should be valid unicode")
+                        .split(".md")
+                        .next()
+                        .expect("should have .md");
+                    if verbose {
+                        println!("Markdown file: {}", name_hum);
+                    }
+
+                    // Read markdown
+                    let file_content =
+                        std::fs::read_to_string(md_path.path()).expect("file should exist");
+                    if verbose {
+                        println!("🟠 Markdown: \n{}", file_content);
+                    }
+
+                    // Populate components
+                    let content_populated = populate_components(file_content, &components, verbose);
+
+                    // Parse markdown with pulldown_cmark
+                    let parse = pulldown_cmark::Parser::new(&content_populated);
+                    let mut md_html = String::new();
+                    pulldown_cmark::html::push_html(&mut md_html, parse);
+                    if verbose {
+                        println!("🟠 Generated HTML: \n{}", md_html);
+                    }
+
+                    // Save Post
+                    let metadata = std::fs::metadata(md_path.path()).unwrap();
+
+                    if let Ok(time) = metadata.created() {
+                        posts.push(Post {
+                            name: name_hum.to_string(),
+                            file_name: name_hum.replace(" ", "-").to_lowercase() + ".html",
+                            content: md_html.clone(),
+                            date: time.duration_since(std::time::UNIX_EPOCH).unwrap(),
+                            date_hum: Local.timestamp_opt(time.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string(),
+                        });
+                    } else {
+                        println!("🔴 WARNING! File creation date not supported on this platform!");
+                        posts.push(Post {
+                            name: name_hum.to_string(),
+                            file_name: name_hum.replace(" ", "-").to_lowercase() + ".html",
+                            content: md_html.clone(),
+                            date: std::time::Duration::new(0, 0),
+                            date_hum: Local.timestamp_opt(0, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string(),
+                        });
+                    }
+
+                    count += 1;
                 }
-
-                // Read markdown
-                let file_content =
-                    std::fs::read_to_string(md_path.path()).expect("file should exist");
-                if verbose {
-                    println!("🟠 Markdown: \n{}", file_content);
-                }
-
-                
-
-                // Populate components
-                let content_populated = populate_components(file_content, &components, verbose);
-
-                // Parse markdown with pulldown_cmark
-                let parse = pulldown_cmark::Parser::new(&content_populated);
-                //let parse = parse.map(|event| match event {
-                //    pulldown_cmark::Event::SoftBreak => pulldown_cmark::Event::HardBreak,
-                //    _ => event,
-                //});
-
-                let mut md_html = String::new();
-                pulldown_cmark::html::push_html(&mut md_html, parse);
-                if verbose {
-                    println!("🟠 Generated HTML: \n{}", md_html);
-                }
-
-                // Save Post creation date
-                let metadata = std::fs::metadata(md_path.path()).unwrap();
-                let mut date = String::new();
-
-                if let Ok(time) = metadata.created() {
-                    posts.push(Post {
-                        name: name_hum.to_string(),
-                        file_name: name_hum.replace(" ", "-").to_lowercase() + ".html",
-                        content: md_html.clone(),
-                        date: time.duration_since(std::time::UNIX_EPOCH).unwrap()
-                    });
-                    date = Local.timestamp_opt(time.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string();
-                } else {
-                    println!("Not supported on this platform");
-                }
-
-                // Set title
-                let mut html_file = post_template.replace("{{title}}", name_hum);
-                // Insert formatted content
-                html_file = html_file.replace("{{content}}", &md_html);
-                // Insert date
-                html_file = html_file.replace("{{date}}", &date);
-                
-                // Write to disk. File names are lowercase and replace spaces with '-'
-                std::fs::write(path.to_string() + "\\" + &name_hum.replace(" ", "-").to_lowercase() + ".html", html_file)
-                    .expect("should be able to write to file");
-
-                
-
-                count += 1;
+                Err(_) => {}
             }
-            Err(_) => {}
         }
+
+        println!("🟢 Build {} post(s)", count);
+        for post in &posts {
+            println!("    - {}: {}", post.name, post.file_name)
+        }
+
+        // Generate blog index
+        println!("🟢 Building index page...");
+        posts.sort_by(|a, b| b.date.cmp(&a.date));
+
+        let current_post_html = current_post_fmt(posts[0].clone());
+        let all_posts_html = all_posts_table(&posts);
+
+        let mut blog_index_html = index_template.replace("{{current_post}}", &current_post_html);
+        blog_index_html = blog_index_html.replace("{{all_posts}}", &all_posts_html);
+
+        // Save blog posts
+        for post in posts {
+            // Set title
+            let mut html_file = post_template.replace("{{title}}", &post.name);
+            // Insert formatted content
+            html_file = html_file.replace("{{content}}", &post.content);
+            // Insert date
+            html_file = html_file.replace("{{date}}", &post.date_hum);
+            // Insert all posts table
+            html_file = html_file.replace("{{all_posts}}", &all_posts_html);
+            // Insert current post
+            html_file = html_file.replace("{{current_post}}", &current_post_html);
+
+            // Write to disk. File names are lowercase and replace spaces with '-'
+            std::fs::write(path.to_string() + "\\blog\\" + &post.file_name, html_file)
+                .expect("should be able to write to file");
+        }
+        // Save blog index
+        std::fs::write(path.to_string() + "\\blog\\blog.html", blog_index_html)
+            .expect("should be able to write to file");
+
+        println!("🟢 Build index page! Done.");
     }
-
-    println!("🟢 Build {} post(s)", count);
-    for post in &posts {
-        println!("    - {}: {}", post.name, post.file_name)
-    }
-
-    // Generate blog index
-    println!("🟢 Building index page...");
-    posts.sort_by(|a, b| b.date.cmp(&a.date));
-
-    // Generate Blog Index
-    // Insert current post
-    let mut html_file = index_template.replace("{{current_post}}", &current_post_fmt(posts[0].clone()));
-    // Insert all posts
-    html_file = html_file.replace("{{all_posts}}", &all_posts_table(&posts));
-
-    // Write to file
-    std::fs::write(path.to_string() + "\\blog.html", html_file)
-        .expect("should be able to write to file");
-
-    println!("🟢 Build index page! Done.");
+    
 }
 
 fn current_post_fmt(post: Post) -> String {
