@@ -7,7 +7,7 @@ Components can work recursively with the {{component: other-name}} tag. Insertin
 <div class="link-banner">
     <div class="title-links">
         <a href="index.html">Home</a>
-        <a href="blog.html">Blog</a>
+        <a href="blog/blog.html">Blog</a>
         <a href="rss.xml">RSS</a>
     </div>
     <div class="social_icons">
@@ -30,7 +30,7 @@ Components can work recursively with the {{component: other-name}} tag. Insertin
 <div class="link-banner">
     <div class="title-links">
         <a href="../index.html">Home</a>
-        <a href="../blog.html">Blog</a>
+        <a href="blog.html">Blog</a>
         <a href="../rss.xml">RSS</a>
     </div>
     <div class="social_icons">
@@ -48,6 +48,50 @@ Components can work recursively with the {{component: other-name}} tag. Insertin
     </div>
 </div>
 {{/link-banner-blog}}
+
+{{impressum}}
+<div class="impressum">
+    <div class="impressum_column impressum_left">
+        <span>Navigation</span><br>
+        <a class="a_impressum" href="index.html">Home</a><br>
+        <a class="a_impressum" href="privacy.html">Privacy Notice</a><br>
+        <a class="a_impressum" href="https://pipinspace.github.io">Home again</a><br>
+    </div>
+    <div class="impressum_column impressum_center">
+        <span>Copyright © 2022-2023</span><br>
+        by PipInSpace.<br> All Rights Reserved.<br>
+        <a href="https://pipinspace.github.io"><img class="clickableImg" src="img/PixelArtPipTransparent.png"
+                alt="profile pic" style="border-radius: 400px;">
+        </a><br>
+    </div>
+    <div class="impressum_column impressum_right">
+        <span>Impressum</span><br>
+        Address
+    </div>
+</div>
+{{/impressum}}
+
+{{impressum-blog}}
+<div class="impressum">
+    <div class="impressum_column impressum_left">
+        <span>Navigation</span><br>
+        <a class="a_impressum" href="../index.html">Home</a><br>
+        <a class="a_impressum" href="../privacy.html">Privacy Notice</a><br>
+        <a class="a_impressum" href="https://pipinspace.github.io">Home again</a><br>
+    </div>
+    <div class="impressum_column impressum_center">
+        <span>Copyright © 2022-2023</span><br>
+        by PipInSpace.<br> All Rights Reserved.<br>
+        <a href="https://pipinspace.github.io"><img class="clickableImg" src="../img/PixelArtPipTransparent.png"
+                alt="profile pic" style="border-radius: 400px;">
+        </a><br>
+    </div>
+    <div class="impressum_column impressum_right">
+        <span>Impressum</span><br>
+        Address
+    </div>
+</div>
+{{/impressum-blog}}
 
 {{main-body-start}}
 <div class="main_body">
