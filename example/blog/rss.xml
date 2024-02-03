@@ -1,0 +1,15 @@
+<rss version="2.0">
+  <channel>
+    <title>PipInSpace's Blog</title>
+    <link>https://pipinspace.github.io/blog/blog</link>
+    <description>My Blog. Sometimes I post here.</description>
+
+    <item>
+      <title>Nothing</title>
+      <pubDate>Thu, 01 Feb 2024 15:32:41 UTC</pubDate>
+      <link>https://pipinspace.github.io/blog/nothing.html</link>
+      <guid>https://pipinspace.github.io/blog/nothing.html</guid>
+      <description>There is nothing here. For now.  Lorem ipsum dolor...</description>
+    </item>
+  </channel>
+</rss>

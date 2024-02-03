@@ -1,5 +1,5 @@
-use std::{collections::HashMap, fs::ReadDir, time::Duration};
 use chrono::prelude::*;
+use std::{collections::HashMap, fs::ReadDir, time::Duration};
 
 // How many components can be in a line. Needed in case of recursively defined components
 const MAX_COMPONENT_DEPTH: u32 = 10;
@@ -9,6 +9,7 @@ struct Page {
     name: String,
     file_name: String,
     content: String,
+    content_md: String,
     date: Duration,
     date_hum: String,
 }
@@ -21,8 +22,8 @@ fn main() {
     }
     let verbose = args.contains(&"--verbose".to_string());
     let blog = args.contains(&"--blog".to_string());
+    let mut rss = false;
     let path = &args[1];
-    
 
     // Open Files
     println!("🟢 Building {}...", path);
@@ -44,41 +45,67 @@ fn main() {
         }
     };
 
-
     // Only in --blog mode:
     let blog_paths = if blog {
-        Some(match std::fs::read_dir(path.to_owned() + "\\text-src\\blog") {
-            Ok(blog_paths) => blog_paths,
-            Err(_) => {
-                println!("🔴 WARNING! ./{}/blog does not exist. In blog mode, this is were your posts/templates need to be saved. Aborting.", path);
-                std::process::exit(0);
-            }
-        })
+        Some(
+            match std::fs::read_dir(path.to_owned() + "\\text-src\\blog") {
+                Ok(blog_paths) => blog_paths,
+                Err(_) => {
+                    println!("🔴 WARNING! ./{}/blog does not exist. In blog mode, this is were your posts/templates need to be saved. Aborting.", path);
+                    std::process::exit(0);
+                }
+            },
+        )
     } else {
         None
     };
 
     // Blog template
-    let post_template = if blog { match std::fs::read_to_string(path.to_owned() + "/text-src/blog/blog_post.html") {
-        Ok(string) => string,
-        Err(_) => {
-            println!("🔴 WARNING! Blog post template at ./{}/text-src/blog/blog_post.html does not exist. Aborting.", path);
-            std::process::exit(0);
+    let post_template = if blog {
+        match std::fs::read_to_string(path.to_owned() + "/text-src/blog/blog_post.html") {
+            Ok(string) => string,
+            Err(_) => {
+                println!("🔴 WARNING! Blog post template at ./{}/text-src/blog/blog_post.html does not exist. Aborting.", path);
+                std::process::exit(0);
+            }
         }
-    }} else {
+    } else {
         String::new()
     };
     // Blog main page
-    let index_template = if blog { match std::fs::read_to_string(path.to_owned() + "/text-src/blog/blog_index.html") {
-        Ok(string) => string,
-        Err(_) => {
-            println!("🔴 WARNING! Blog index template at ./{}/text-src/blog/blog_index.html does not exist. Aborting.", path);
-            std::process::exit(0);
+    let index_template = if blog {
+        match std::fs::read_to_string(path.to_owned() + "/text-src/blog/blog_index.html") {
+            Ok(string) => string,
+            Err(_) => {
+                println!("🔴 WARNING! Blog index template at ./{}/text-src/blog/blog_index.html does not exist. Aborting.", path);
+                std::process::exit(0);
+            }
         }
-    }} else {
+    } else {
         String::new()
     };
-
+    // RSS config
+    let rss_config = if blog {
+        match std::fs::read_to_string(path.to_owned() + "/text-src/blog/rss.cfg") {
+            Ok(string) => {
+                println!(
+                    "🟢 RSS config found at ./{}/text-src/blog/rss.cfg RSS feature enabled",
+                    path
+                );
+                rss = true;
+                string
+            }
+            Err(_) => {
+                println!(
+                    "🔴 No RSS config found at ./{}/text-src/blog/rss.cfg RSS feature disabled",
+                    path
+                );
+                String::new()
+            }
+        }
+    } else {
+        String::new()
+    };
 
     // Build components
     let components_string =
@@ -108,7 +135,11 @@ fn main() {
     let mut current_post_html = String::new();
     let mut all_posts_html = String::new();
     if blog {
-        let mut posts: Vec<Page> = build_pages(blog_paths.expect("Should contain ReadDir"), &components, verbose);
+        let mut posts: Vec<Page> = build_pages(
+            blog_paths.expect("Should contain ReadDir"),
+            &components,
+            verbose,
+        );
 
         println!("🟢 Build {} post(s)", posts.len());
         for post in &posts {
@@ -126,7 +157,7 @@ fn main() {
         blog_index_html = blog_index_html.replace("{{all_posts}}", &all_posts_html);
 
         // Save blog posts
-        for post in posts {
+        for post in &posts {
             // Set title
             let mut html_file = post_template.replace("{{title}}", &post.name);
             // Insert formatted content
@@ -147,6 +178,14 @@ fn main() {
             .expect("should be able to write to file");
 
         println!("🟢 Build blog index page!");
+        if rss {
+            println!("🟢 Building rss feed...");
+            std::fs::write(
+                path.to_string() + "\\blog\\rss.xml",
+                build_feed(rss_config, &posts),
+            )
+            .expect("should be able to write to file");
+        }
     }
 
     // Save/process pages
@@ -169,7 +208,6 @@ fn main() {
             .expect("should be able to write to file");
     }
     println!("🟢 Build and saved all pages! Done.");
-    
 }
 
 // Basic formatting and buffering
@@ -186,7 +224,6 @@ fn build_pages(paths: ReadDir, components: &HashMap<String, String>, verbose: bo
     }) {
         match md_path {
             Ok(md_path) => {
-            
                 // Get post name
                 let name = md_path.file_name();
                 let name_hum = name
@@ -198,17 +235,17 @@ fn build_pages(paths: ReadDir, components: &HashMap<String, String>, verbose: bo
                 if verbose {
                     println!("Markdown file: {}", name_hum);
                 }
-            
+
                 // Read markdown
                 let file_content =
                     std::fs::read_to_string(md_path.path()).expect("file should exist");
                 if verbose {
                     println!("🟠 Markdown: \n{}", file_content);
                 }
-            
+
                 // Populate components
                 let content_populated = populate_components(file_content, &components, verbose);
-            
+
                 // Parse markdown with pulldown_cmark
                 let parse = pulldown_cmark::Parser::new(&content_populated);
                 let mut md_html = String::new();
@@ -216,17 +253,27 @@ fn build_pages(paths: ReadDir, components: &HashMap<String, String>, verbose: bo
                 if verbose {
                     println!("🟠 Generated HTML: \n{}", md_html);
                 }
-            
+
                 // Save page in buffer for postprocessing/assembly
                 let metadata = std::fs::metadata(md_path.path()).unwrap();
-            
+
                 if let Ok(time) = metadata.created() {
                     pages.push(Page {
                         name: name_hum.to_string(),
                         file_name: name_hum.replace(" ", "-").to_lowercase() + ".html",
                         content: md_html.clone(),
+                        content_md: content_populated,
                         date: time.duration_since(std::time::UNIX_EPOCH).unwrap(),
-                        date_hum: Local.timestamp_opt(time.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string(),
+                        date_hum: Local
+                            .timestamp_opt(
+                                time.duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap()
+                                    .as_secs() as i64,
+                                0,
+                            )
+                            .unwrap()
+                            .format("%d.%m.%Y - %H:%M")
+                            .to_string(),
                     });
                 } else {
                     println!("🔴 WARNING! File creation date not supported on this platform!");
@@ -234,8 +281,13 @@ fn build_pages(paths: ReadDir, components: &HashMap<String, String>, verbose: bo
                         name: name_hum.to_string(),
                         file_name: name_hum.replace(" ", "-").to_lowercase() + ".html",
                         content: md_html.clone(),
+                        content_md: content_populated,
                         date: std::time::Duration::new(0, 0),
-                        date_hum: Local.timestamp_opt(0, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string(),
+                        date_hum: Local
+                            .timestamp_opt(0, 0)
+                            .unwrap()
+                            .format("%d.%m.%Y - %H:%M")
+                            .to_string(),
                     });
                 }
             }
@@ -246,12 +298,81 @@ fn build_pages(paths: ReadDir, components: &HashMap<String, String>, verbose: bo
     pages
 }
 
+// Rss feed
+fn build_feed(cfg: String, posts: &Vec<Page>) -> String {
+    let mut title = String::new();
+    let mut link = String::new();
+    let mut description = String::new();
+    let mut post_link = String::new();
+
+    for line in cfg.lines() {
+        if line.starts_with("title: ") {
+            title = line
+                .split('\"')
+                .nth(1)
+                .expect("Title should not be empty")
+                .to_string();
+        } else if line.starts_with("link: ") {
+            link = line
+                .split('\"')
+                .nth(1)
+                .expect("Link should not be empty")
+                .to_string();
+        } else if line.starts_with("description: ") {
+            description = line
+                .split('\"')
+                .nth(1)
+                .expect("Description should not be empty")
+                .to_string();
+        } else if line.starts_with("post-link: ") {
+            post_link = line
+                .split('\"')
+                .nth(1)
+                .expect("Post link should not be empty")
+                .to_string();
+        }
+    }
+    //println!(
+    //    "RSS config:\n{}\n{}\n{}\n{}",
+    //    title, link, description, post_link
+    //);
+
+    let mut feed = "<rss version=\"2.0\">\n  <channel>\n".to_string();
+    feed += &format!(
+        "    <title>{}</title>\n    <link>{}</link>\n    <description>{}</description>\n\n",
+        title, link, description
+    );
+
+    for post in posts.into_iter().rev() {
+        let pub_date = Utc
+            .timestamp_opt(post.date.as_secs() as i64, 0)
+            .unwrap()
+            .format("%a, %d %b %Y %T UTC")
+            .to_string();
+        let post_link = format!("{}{}", post_link, post.file_name);
+        let mut post_description = post.content_md.clone().replace('\n', " ");
+        post_description.truncate(50);
+        if post_description.len() == 50 {
+            post_description += "...";
+        }
+
+        feed += &format!("    <item>\n      <title>{}</title>\n      <pubDate>{}</pubDate>\n      <link>{}</link>\n      <guid>{}</guid>\n      <description>{}</description>\n    </item>\n", post.name, pub_date, post_link, post_link, post_description);
+    }
+
+    feed += "  </channel>\n</rss>";
+
+    feed
+}
 
 // Html generation
 fn current_post_fmt(posts: &Vec<Page>) -> String {
     if !posts.is_empty() {
         let post = posts[0].clone();
-        let dt = Local.timestamp_opt(post.date.as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string();
+        let dt = Local
+            .timestamp_opt(post.date.as_secs() as i64, 0)
+            .unwrap()
+            .format("%d.%m.%Y - %H:%M")
+            .to_string();
         println!("🟢 Current Post: {} - {}", post.name, dt);
 
         let mut content = String::new();
@@ -269,7 +390,6 @@ fn current_post_fmt(posts: &Vec<Page>) -> String {
     } else {
         return "<h1>Current: None</h1>".to_string();
     }
-    
 }
 
 #[allow(unused)]
@@ -283,7 +403,11 @@ fn all_posts_list(posts: &Vec<Page>) -> String {
         content += "\">";
         content += &post.name;
         content += "</a> - ";
-        content += &Local.timestamp_opt(post.date.as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string();
+        content += &Local
+            .timestamp_opt(post.date.as_secs() as i64, 0)
+            .unwrap()
+            .format("%d.%m.%Y - %H:%M")
+            .to_string();
         content += "</li>\n";
     }
     content += "</ul>\n";
@@ -301,14 +425,17 @@ fn all_posts_table(posts: &Vec<Page>) -> String {
         content += "\">";
         content += &post.name;
         content += "</a></td><td> ";
-        content += &Local.timestamp_opt(post.date.as_secs() as i64, 0).unwrap().format("%d.%m.%Y - %H:%M").to_string();
+        content += &Local
+            .timestamp_opt(post.date.as_secs() as i64, 0)
+            .unwrap()
+            .format("%d.%m.%Y - %H:%M")
+            .to_string();
         content += "</td></tr>\n";
     }
     content += "</table>\n";
 
     content
 }
-
 
 // Components system
 fn parse_components(component_string: String, component_map: &mut HashMap<String, String>) {
@@ -338,7 +465,11 @@ fn parse_components(component_string: String, component_map: &mut HashMap<String
     }
 }
 
-fn populate_components(content: String, components: &HashMap<String, String>, verbose: bool) -> String {
+fn populate_components(
+    content: String,
+    components: &HashMap<String, String>,
+    verbose: bool,
+) -> String {
     let mut new_content = String::new();
 
     for line in content.lines() {
@@ -381,8 +512,8 @@ fn comp_line(line: &str, components: &HashMap<String, String>, depth: u32) -> St
                             + "}}"),
                         &comp,
                     );
-                    new_line = comp_line(&new_line, components, depth);
-                    return new_line;
+                new_line = comp_line(&new_line, components, depth);
+                return new_line;
             }
             None => {
                 println!("🔴 WARNING! Component {} missing.", name);
