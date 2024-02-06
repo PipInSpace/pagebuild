@@ -351,8 +351,8 @@ fn build_feed(cfg: String, posts: &Vec<Page>) -> String {
             .to_string();
         let post_link = format!("{}{}", post_link, post.file_name);
         let mut post_description = post.content_md.clone().replace('\n', " ");
-        post_description.truncate(50);
-        if post_description.len() == 50 {
+        post_description.truncate(97);
+        if post_description.len() == 97 {
             post_description += "...";
         }
 
