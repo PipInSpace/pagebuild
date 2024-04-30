@@ -27,7 +27,7 @@ fn main() {
 
     // Open Files
     println!("🟢 Building {}...", path);
-    let paths = std::fs::read_dir(path.to_owned() + "\\text-src");
+    let paths = std::fs::read_dir(path.to_owned() + "/text-src");
     let paths = match paths {
         Ok(paths) => paths,
         Err(_) => {
@@ -48,7 +48,7 @@ fn main() {
     // Only in --blog mode:
     let blog_paths = if blog {
         Some(
-            match std::fs::read_dir(path.to_owned() + "\\text-src\\blog") {
+            match std::fs::read_dir(path.to_owned() + "/text-src/blog") {
                 Ok(blog_paths) => blog_paths,
                 Err(_) => {
                     println!("🔴 WARNING! ./{}/blog does not exist. In blog mode, this is were your posts/templates need to be saved. Aborting.", path);
@@ -170,18 +170,18 @@ fn main() {
             html_file = html_file.replace("{{current_post}}", &current_post_html);
 
             // Write to disk. File names are lowercase and replace spaces with '-'
-            std::fs::write(path.to_string() + "\\blog\\" + &post.file_name, html_file)
+            std::fs::write(path.to_string() + "/blog/" + &post.file_name, html_file)
                 .expect("should be able to write to file");
         }
         // Save blog index
-        std::fs::write(path.to_string() + "\\blog\\blog.html", blog_index_html)
+        std::fs::write(path.to_string() + "/blog/blog.html", blog_index_html)
             .expect("should be able to write to file");
 
         println!("🟢 Build blog index page!");
         if rss {
             println!("🟢 Building rss feed...");
             std::fs::write(
-                path.to_string() + "\\blog\\rss.xml",
+                path.to_string() + "/blog/rss.xml",
                 build_feed(rss_config, &posts),
             )
             .expect("should be able to write to file");
@@ -204,7 +204,7 @@ fn main() {
         }
 
         // Write to disk. File names are lowercase and replace spaces with '-'
-        std::fs::write(path.to_string() + "\\" + &page.file_name, html_file)
+        std::fs::write(path.to_string() + "/" + &page.file_name, html_file)
             .expect("should be able to write to file");
     }
     println!("🟢 Build and saved all pages! Done.");
