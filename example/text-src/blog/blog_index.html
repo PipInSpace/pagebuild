@@ -30,7 +30,11 @@
             more active on <a href="https://mastodon.social/@pipinspace">Mastodon</a>. You can follow me there!
         </p>
         
-        {{current_post}}
+        {{current_post_header}}
+        <details style="margin-bottom: 20px;">
+            <summary style="cursor: pointer;">Click to view</summary>
+            {{current_post_content}}
+        </details>
 
         <h1>All Posts</h1>
         {{all_posts}}

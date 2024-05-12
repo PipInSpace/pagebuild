@@ -132,7 +132,8 @@ fn main() {
     }
 
     // Build posts
-    let mut current_post_html = String::new();
+    let mut current_post_content = String::new();
+    let mut current_post_header = String::new();
     let mut all_posts_html = String::new();
     if blog {
         let mut posts: Vec<Page> = build_pages(
@@ -150,10 +151,11 @@ fn main() {
         println!("🟢 Building blog index page...");
         posts.sort_by(|a, b| b.date.cmp(&a.date));
 
-        current_post_html = current_post_fmt(&posts);
+        (current_post_header, current_post_content) = current_post_fmt(&posts);
         all_posts_html = all_posts_table(&posts);
 
-        let mut blog_index_html = index_template.replace("{{current_post}}", &current_post_html);
+        let mut blog_index_html = index_template.replace("{{current_post_header}}", &current_post_header);
+        blog_index_html = blog_index_html.replace("{{current_post_content}}", &current_post_content);
         blog_index_html = blog_index_html.replace("{{all_posts}}", &all_posts_html);
 
         // Save blog posts
@@ -167,7 +169,8 @@ fn main() {
             // Insert all posts table
             html_file = html_file.replace("{{all_posts}}", &all_posts_html);
             // Insert current post
-            html_file = html_file.replace("{{current_post}}", &current_post_html);
+            html_file = html_file.replace("{{current_post_header}}", &current_post_header);
+            html_file = html_file.replace("{{current_post_content}}", &current_post_content);
 
             // Write to disk. File names are lowercase and replace spaces with '-'
             std::fs::write(path.to_string() + "/blog/" + &post.file_name, html_file)
@@ -200,7 +203,8 @@ fn main() {
             // Insert all posts table
             html_file = html_file.replace("{{all_posts}}", &all_posts_html);
             // Insert current post
-            html_file = html_file.replace("{{current_post}}", &current_post_html);
+            html_file = html_file.replace("{{current_post_header}}", &current_post_header);
+            html_file = html_file.replace("{{current_post_content}}", &current_post_content);
         }
 
         // Write to disk. File names are lowercase and replace spaces with '-'
@@ -210,7 +214,7 @@ fn main() {
     println!("🟢 Build and saved all pages! Done.");
 }
 
-// Basic formatting and buffering
+/// Basic formatting and buffering
 fn build_pages(paths: ReadDir, components: &HashMap<String, String>, verbose: bool) -> Vec<Page> {
     let mut pages: Vec<Page> = vec![];
 
@@ -298,7 +302,7 @@ fn build_pages(paths: ReadDir, components: &HashMap<String, String>, verbose: bo
     pages
 }
 
-// Rss feed
+/// Generate RSS feed from posts
 fn build_feed(cfg: String, posts: &Vec<Page>) -> String {
     let mut title = String::new();
     let mut link = String::new();
@@ -364,8 +368,8 @@ fn build_feed(cfg: String, posts: &Vec<Page>) -> String {
     feed
 }
 
-// Html generation
-fn current_post_fmt(posts: &Vec<Page>) -> String {
+/// Html generation for the current blog post. Returns the header and content as seperate strings
+fn current_post_fmt(posts: &Vec<Page>) -> (String, String) {
     if !posts.is_empty() {
         let post = posts[0].clone();
         let dt = Local
@@ -375,20 +379,17 @@ fn current_post_fmt(posts: &Vec<Page>) -> String {
             .to_string();
         println!("🟢 Current Post: {} - {}", post.name, dt);
 
+        let header = "<h1>Current: <a href=\"".to_string() + &post.file_name + "\">" + &post.name + "</a></h1>";
+
         let mut content = String::new();
-        content += "<h1>Current: <a href=\"";
-        content += &post.file_name;
-        content += "\">";
-        content += &post.name;
-        content += "</a></h1>\n";
         content += &post.content;
         content += "\n<div class=\"blog_footer\">";
         content += &dt;
         content += "</div>";
 
-        return content;
+        return (header, content);
     } else {
-        return "<h1>Current: None</h1>".to_string();
+        return (String::new(), "<h1>Current: None</h1>".to_string());
     }
 }
 
