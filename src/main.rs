@@ -1,5 +1,5 @@
 use chrono::prelude::*;
-use std::{collections::HashMap, fs::ReadDir, time::Duration};
+use std::{collections::HashMap, fs::ReadDir, path::Path, time::Duration};
 
 // How many components can be in a line. Needed in case of recursively defined components
 const MAX_COMPONENT_DEPTH: u32 = 10;
@@ -16,31 +16,40 @@ struct Page {
 
 fn main() {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() < 2 {
-        println!("🔴 No arguments given. Please specify a path to the target directory. Aborting.");
+    if args.len() < 3 {
+        println!("🔴 Not enough arguments given. Please specify a paths to the text source and html directories. Aborting.");
         std::process::exit(0);
     }
     let verbose = args.contains(&"--verbose".to_string());
     let blog = args.contains(&"--blog".to_string());
     let mut rss = false;
-    let path = &args[1];
+    let textsrc_path: &String = &args[1];
+    let html_path: &String = &args[2];
+    if !Path::new(textsrc_path).exists() {
+        println!("🔴 Text source path \"{}\" invalid. Aborting.", textsrc_path);
+        std::process::exit(0);
+    }
+    if !Path::new(html_path).exists() {
+        println!("🔴 HTML path \"{}\" invalid. Aborting.", html_path);
+        std::process::exit(0);
+    }
 
     // Open Files
-    println!("🟢 Building {}...", path);
-    let paths = std::fs::read_dir(path.to_owned() + "/text-src");
+    println!("🟢 Building {}...", textsrc_path);
+    let paths = std::fs::read_dir(textsrc_path.to_owned());
     let paths = match paths {
         Ok(paths) => paths,
         Err(_) => {
-            println!("🔴 WARNING! ./{} does not exist. Aborting.", path);
+            println!("🔴 WARNING! {} does not exist. Aborting.", textsrc_path);
             std::process::exit(0);
         }
     };
 
     // Page template
-    let template = match std::fs::read_to_string(path.to_owned() + "/text-src/template.html") {
+    let template = match std::fs::read_to_string(textsrc_path.to_owned() + "/template.html") {
         Ok(string) => string,
         Err(_) => {
-            println!("🔴 WARNING! Page template at ./{}/text-src/template.html does not exist. Aborting.", path);
+            println!("🔴 WARNING! Page template at ./{}/template.html does not exist. Aborting.", textsrc_path);
             std::process::exit(0);
         }
     };
@@ -48,10 +57,10 @@ fn main() {
     // Only in --blog mode:
     let blog_paths = if blog {
         Some(
-            match std::fs::read_dir(path.to_owned() + "/text-src/blog") {
+            match std::fs::read_dir(textsrc_path.to_owned() + "/blog") {
                 Ok(blog_paths) => blog_paths,
                 Err(_) => {
-                    println!("🔴 WARNING! ./{}/blog does not exist. In blog mode, this is were your posts/templates need to be saved. Aborting.", path);
+                    println!("🔴 WARNING! ./{}/blog does not exist. In blog mode, this is were your posts/templates need to be saved. Aborting.", textsrc_path);
                     std::process::exit(0);
                 }
             },
@@ -62,10 +71,10 @@ fn main() {
 
     // Blog template
     let post_template = if blog {
-        match std::fs::read_to_string(path.to_owned() + "/text-src/blog/blog_post.html") {
+        match std::fs::read_to_string(textsrc_path.to_owned() + "/blog/blog_post.html") {
             Ok(string) => string,
             Err(_) => {
-                println!("🔴 WARNING! Blog post template at ./{}/text-src/blog/blog_post.html does not exist. Aborting.", path);
+                println!("🔴 WARNING! Blog post template at ./{}/blog/blog_post.html does not exist. Aborting.", textsrc_path);
                 std::process::exit(0);
             }
         }
@@ -74,10 +83,10 @@ fn main() {
     };
     // Blog main page
     let index_template = if blog {
-        match std::fs::read_to_string(path.to_owned() + "/text-src/blog/blog_index.html") {
+        match std::fs::read_to_string(textsrc_path.to_owned() + "/blog/blog_index.html") {
             Ok(string) => string,
             Err(_) => {
-                println!("🔴 WARNING! Blog index template at ./{}/text-src/blog/blog_index.html does not exist. Aborting.", path);
+                println!("🔴 WARNING! Blog index template at ./{}/blog/blog_index.html does not exist. Aborting.", textsrc_path);
                 std::process::exit(0);
             }
         }
@@ -86,19 +95,19 @@ fn main() {
     };
     // RSS config
     let rss_config = if blog {
-        match std::fs::read_to_string(path.to_owned() + "/text-src/blog/rss.cfg") {
+        match std::fs::read_to_string(textsrc_path.to_owned() + "/blog/rss.cfg") {
             Ok(string) => {
                 println!(
-                    "🟢 RSS config found at ./{}/text-src/blog/rss.cfg RSS feature enabled",
-                    path
+                    "🟢 RSS config found at ./{}/blog/rss.cfg RSS feature enabled",
+                    textsrc_path
                 );
                 rss = true;
                 string
             }
             Err(_) => {
                 println!(
-                    "🔴 No RSS config found at ./{}/text-src/blog/rss.cfg RSS feature disabled",
-                    path
+                    "🔴 No RSS config found at ./{}/blog/rss.cfg RSS feature disabled",
+                    textsrc_path
                 );
                 String::new()
             }
@@ -109,7 +118,7 @@ fn main() {
 
     // Build components
     let components_string =
-        std::fs::read_to_string(path.to_owned() + "/text-src/components.html").ok();
+        std::fs::read_to_string(textsrc_path.to_owned() + "/components.html").ok();
 
     // Html component hashmap
     let mut components: HashMap<String, String> = HashMap::new();
@@ -136,6 +145,10 @@ fn main() {
     let mut current_post_header = String::new();
     let mut all_posts_html = String::new();
     if blog {
+        if !Path::new(&(html_path.to_owned() + "/blog")).exists() {
+            println!("🔴 WARNING! HTML blog path \"{}/blog\" does not exist. Creating it.", html_path);
+            std::fs::create_dir(&(html_path.to_owned() + "/blog")).unwrap();
+        }
         let mut posts: Vec<Page> = build_pages(
             blog_paths.expect("Should contain ReadDir"),
             &components,
@@ -173,18 +186,18 @@ fn main() {
             html_file = html_file.replace("{{current_post_content}}", &current_post_content);
 
             // Write to disk. File names are lowercase and replace spaces with '-'
-            std::fs::write(path.to_string() + "/blog/" + &post.file_name, html_file)
+            std::fs::write(html_path.to_string() + "/blog/" + &post.file_name, html_file)
                 .expect("should be able to write to file");
         }
         // Save blog index
-        std::fs::write(path.to_string() + "/blog/blog.html", blog_index_html)
+        std::fs::write(html_path.to_string() + "/blog/blog.html", blog_index_html)
             .expect("should be able to write to file");
 
         println!("🟢 Build blog index page!");
         if rss {
             println!("🟢 Building rss feed...");
             std::fs::write(
-                path.to_string() + "/blog/rss.xml",
+                html_path.to_string() + "/blog/rss.xml",
                 build_feed(rss_config, &posts),
             )
             .expect("should be able to write to file");
@@ -208,7 +221,7 @@ fn main() {
         }
 
         // Write to disk. File names are lowercase and replace spaces with '-'
-        std::fs::write(path.to_string() + "/" + &page.file_name, html_file)
+        std::fs::write(html_path.to_string() + "/" + &page.file_name, html_file)
             .expect("should be able to write to file");
     }
     println!("🟢 Build and saved all pages! Done.");
